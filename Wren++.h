@@ -429,6 +429,20 @@ namespace detail
     };
 
     template <>
+    struct WrenSlotAPI<size_t>
+    {
+        static unsigned get(WrenVM* vm, int slot)
+        {
+            return size_t(wrenGetSlotDouble(vm, slot));
+        }
+
+        static void set(WrenVM* vm, int slot, size_t val)
+        {
+            wrenSetSlotDouble(vm, slot, double(val));
+        }
+    };
+
+    template <>
     struct WrenSlotAPI<bool>
     {
         static bool get(WrenVM* vm, int slot)
