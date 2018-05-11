@@ -136,11 +136,11 @@ namespace detail
     {
     public:
         ForeignObjectValue()
-            : data_()
+            : _data()
         {
         }
 
-        virtual ~ForeignObjectValue()
+        virtual ~ForeignObjectValue() override
         {
             T* obj = static_cast<T*>(objectPtr());
             obj->~T();
@@ -148,7 +148,7 @@ namespace detail
 
         void* objectPtr() override
         {
-            return &data_;
+            return &_data;
         }
 
         uint32_t typeId() override
@@ -167,7 +167,7 @@ namespace detail
         }
 
     private:
-        typename std::aligned_storage<sizeof(T), alignof(T)>::type data_;
+        typename std::aligned_storage<sizeof(T), alignof(T)>::type _data;
     };
 
     /*
@@ -179,14 +179,14 @@ namespace detail
     {
     public:
         explicit ForeignObjectPtr(T* object)
-            : object_{object}
+            : _object{object}
         {
         }
         virtual ~ForeignObjectPtr() = default;
 
         void* objectPtr() override
         {
-            return object_;
+            return _object;
         }
 
         uint32_t typeId() override
@@ -203,7 +203,7 @@ namespace detail
         }
 
     private:
-        T* object_;
+        T* _object;
     };
 
     /***
@@ -312,7 +312,7 @@ namespace detail
         static T& get(WrenVM* vm, int slot)
         {
             ForeignObject* obj = static_cast<ForeignObject*>(wrenGetSlotForeign(vm, slot));
-            assert(obj->typeId() == getTypeId<T>());
+            assert(obj->typeId() == getTypeId<T>() && "Different type expected");
             return *static_cast<T*>(obj->objectPtr());
         }
 
@@ -328,13 +328,11 @@ namespace detail
         static const T& get(WrenVM* vm, int slot)
         {
             ForeignObject* obj = static_cast<ForeignObject*>(wrenGetSlotForeign(vm, slot));
-            assert(obj->typeId() == getTypeId<T>());
-            //            wrenSetSlotString(vm, 0, "Cannot write to a closed file.");
-            //            wrenAbortFiber(vm, 0);
+            assert(obj->typeId() == getTypeId<T>() && "Different type expected");
             return *static_cast<T*>(obj->objectPtr());
         }
 
-        static void set(WrenVM* vm, int slot, const T& t)
+        static void set(WrenVM* vm, int /*slot*/, const T& t)
         {
             ForeignObjectPtr<T>::setInSlot(vm, 0, const_cast<T*>(&t));
         }
@@ -346,7 +344,7 @@ namespace detail
         static T* get(WrenVM* vm, int slot)
         {
             ForeignObject* obj = static_cast<ForeignObject*>(wrenGetSlotForeign(vm, slot));
-            assert(obj->typeId() == getTypeId<T>());
+            assert(obj->typeId() == getTypeId<T>() && "Different type expected");
             return static_cast<T*>(obj->objectPtr());
         }
 
@@ -362,7 +360,7 @@ namespace detail
         static const T* get(WrenVM* vm, int slot)
         {
             ForeignObject* obj = static_cast<ForeignObject*>(wrenGetSlotForeign(vm, slot));
-            assert(obj->typeId() == getTypeId<T>());
+            assert(obj->typeId() == getTypeId<T>() && "Different type expected");
             return static_cast<const T*>(obj->objectPtr());
         }
 
@@ -431,7 +429,7 @@ namespace detail
     template <>
     struct WrenSlotAPI<size_t>
     {
-        static unsigned get(WrenVM* vm, int slot)
+        static size_t get(WrenVM* vm, int slot)
         {
             return size_t(wrenGetSlotDouble(vm, slot));
         }
@@ -765,7 +763,8 @@ class Method;
 class Value
 {
 public:
-    Value() = default;
+    Value()                   = default;
+    Value(const Value& value) = default;
     ~Value();
 
     Value(bool);
@@ -784,9 +783,9 @@ private:
     template <typename T>
     void set(T&& t);
 
-    WrenType     type_{WREN_TYPE_NULL};
-    char*        string_{nullptr};
-    std::uint8_t storage_[8]{0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
+    WrenType     _type{WREN_TYPE_NULL};
+    char*        _string{nullptr};
+    std::uint8_t _storage[8]{0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
 };
 
 extern Value null;
@@ -813,9 +812,9 @@ public:
     Value operator()(Args... args) const;
 
 private:
-    mutable VM*         vm_{nullptr};
-    mutable WrenHandle* method_{nullptr};
-    mutable WrenHandle* variable_{nullptr};
+    mutable VM*         _vm{nullptr};
+    mutable WrenHandle* _method{nullptr};
+    mutable WrenHandle* _variable{nullptr};
 };
 
 class ModuleContext;
@@ -834,8 +833,8 @@ public:
     ModuleContext& endClass();
 
 protected:
-    ModuleContext& module_;
-    std::string    class_;
+    ModuleContext& _module;
+    std::string    _class;
 };
 
 template <typename T>
@@ -863,8 +862,8 @@ class ModuleContext
 public:
     ModuleContext() = delete;
     ModuleContext(WrenVM* vm, std::string mod)
-        : vm_(vm)
-        , name_(mod)
+        : _vm(vm)
+        , _name(mod)
     {
     }
 
@@ -880,8 +879,8 @@ private:
     template <typename T>
     friend class RegisteredClassContext;
 
-    WrenVM*     vm_;
-    std::string name_;
+    WrenVM*     _vm;
+    std::string _name;
 };
 
 enum class Result
@@ -903,12 +902,12 @@ public:
 
     inline WrenVM* ptr()
     {
-        return vm_;
+        return _vm;
     }
 
     inline operator WrenVM*() const
     {
-        return vm_;
+        return _vm;
     }
 
     Result executeModule(const std::string&);
@@ -940,79 +939,79 @@ private:
     template <typename T>
     friend class RegisteredClassContext;
 
-    WrenVM* vm_;
+    WrenVM* _vm;
 };
 
 template <typename T>
 Value::Value(T* t)
-    : type_{WREN_TYPE_FOREIGN}
-    , string_{nullptr}
+    : _type{WREN_TYPE_FOREIGN}
+    , _string{nullptr}
 {
-    std::memcpy(storage_, &t, sizeof(T*));
+    std::memcpy(_storage, &t, sizeof(T*));
 }
 
 template <>
 inline float Value::as<float>() const
 {
-    assert(type_ == WREN_TYPE_NUM);
-    return *reinterpret_cast<const float*>(&storage_[0]);
+    assert(_type == WREN_TYPE_NUM);
+    return *reinterpret_cast<const float*>(&_storage[0]);
 }
 
 template <typename T>
 void Value::set(T&& t)
 {
     static_assert(sizeof(T) <= 8, "The type is invalid!");
-    std::memcpy(storage_, &t, sizeof(T));
+    std::memcpy(_storage, &t, sizeof(T));
 }
 
 template <>
 inline double Value::as<double>() const
 {
-    assert(type_ == WREN_TYPE_NUM);
-    return *reinterpret_cast<const double*>(&storage_[0]);
+    assert(_type == WREN_TYPE_NUM);
+    return *reinterpret_cast<const double*>(&_storage[0]);
 }
 
 template <>
 inline bool Value::as<bool>() const
 {
-    assert(type_ == WREN_TYPE_BOOL);
-    return *reinterpret_cast<const bool*>(&storage_[0]);
+    assert(_type == WREN_TYPE_BOOL);
+    return *reinterpret_cast<const bool*>(&_storage[0]);
 }
 
 template <>
 inline const char* Value::as<const char*>() const
 {
-    assert(type_ == WREN_TYPE_STRING);
-    return string_;
+    assert(_type == WREN_TYPE_STRING);
+    return _string;
 }
 
 template <typename... Args>
 Value Method::operator()(Args... args) const
 {
-    assert(vm_ && variable_ && method_);
+    assert(_vm && _variable && _method);
     constexpr const std::size_t Arity = sizeof...(Args);
-    wrenEnsureSlots(vm_->ptr(), Arity + 1u);
-    wrenSetSlotHandle(vm_->ptr(), 0, variable_);
+    wrenEnsureSlots(_vm->ptr(), Arity + 1u);
+    wrenSetSlotHandle(_vm->ptr(), 0, _variable);
 
     std::tuple<Args...> tuple = std::make_tuple(args...);
-    detail::passArgumentsToWren(vm_->ptr(), tuple, std::make_index_sequence<Arity>{});
+    detail::passArgumentsToWren(_vm->ptr(), tuple, std::make_index_sequence<Arity>{});
 
-    auto result = wrenCall(vm_->ptr(), method_);
+    auto result = wrenCall(_vm->ptr(), _method);
 
     if (result == WREN_RESULT_SUCCESS)
     {
-        WrenType type = wrenGetSlotType(vm_->ptr(), 0);
+        WrenType type = wrenGetSlotType(_vm->ptr(), 0);
 
         switch (type)
         {
             case WREN_TYPE_BOOL:
-                return Value(wrenGetSlotBool(vm_->ptr(), 0));
+                return Value(wrenGetSlotBool(_vm->ptr(), 0));
             case WREN_TYPE_NUM:
-                return Value(wrenGetSlotDouble(vm_->ptr(), 0));
+                return Value(wrenGetSlotDouble(_vm->ptr(), 0));
             case WREN_TYPE_STRING:
-                return Value(wrenGetSlotString(vm_->ptr(), 0));
+                return Value(wrenGetSlotString(_vm->ptr(), 0));
             case WREN_TYPE_FOREIGN:
-                return Value(wrenGetSlotForeign(vm_->ptr(), 0));
+                return Value(wrenGetSlotForeign(_vm->ptr(), 0));
             default:
                 assert("Invalid Wren type");
                 break;
@@ -1026,13 +1025,13 @@ template <typename T, typename... Args>
 RegisteredClassContext<T> ModuleContext::bindClass(std::string className)
 {
     WrenForeignClassMethods wrapper{&detail::allocate<T, Args...>, &detail::finalize<T>};
-    detail::registerClass(vm_, name_, className, wrapper);
+    detail::registerClass(_vm, _name, className, wrapper);
 
     // store the name and module if not already done
     if (detail::classNameStorage().size() == detail::getTypeId<T>())
     {
         assert(detail::classNameStorage().size() == detail::moduleNameStorage().size());
-        detail::bindTypeToModuleName<T>(name_);
+        detail::bindTypeToModuleName<T>(_name);
         detail::bindTypeToClassName<T>(className);
     }
     return RegisteredClassContext<T>(className, *this);
@@ -1041,7 +1040,7 @@ RegisteredClassContext<T> ModuleContext::bindClass(std::string className)
 template <typename F, F f>
 ClassContext& ClassContext::bindFunction(bool isStatic, std::string s)
 {
-    detail::registerFunction(module_.vm_, module_.name_, class_, isStatic, s,
+    detail::registerFunction(_module._vm, _module._name, _class, isStatic, s,
                              detail::ForeignMethodWrapper<decltype(f), f>::call);
     return *this;
 }
@@ -1050,7 +1049,7 @@ template <typename T>
 template <typename F, F f>
 RegisteredClassContext<T>& RegisteredClassContext<T>::bindMethod(bool isStatic, std::string s)
 {
-    detail::registerFunction(module_.vm_, module_.name_, class_, isStatic, s,
+    detail::registerFunction(_module._vm, _module._name, _class, isStatic, s,
                              detail::ForeignMethodWrapper<decltype(f), f>::call);
     return *this;
 }
@@ -1059,7 +1058,7 @@ template <typename T>
 template <typename U, U T::*Field>
 RegisteredClassContext<T>& RegisteredClassContext<T>::bindGetter(std::string s)
 {
-    detail::registerFunction(module_.vm_, module_.name_, class_, false, s, detail::propertyGetter<T, U, Field>);
+    detail::registerFunction(_module._vm, _module._name, _class, false, s, detail::propertyGetter<T, U, Field>);
     return *this;
 }
 
@@ -1067,7 +1066,7 @@ template <typename T>
 template <typename U, U T::*Field>
 RegisteredClassContext<T>& RegisteredClassContext<T>::bindSetter(std::string s)
 {
-    detail::registerFunction(module_.vm_, module_.name_, class_, false, s, detail::propertySetter<T, U, Field>);
+    detail::registerFunction(_module._vm, _module._name, _class, false, s, detail::propertySetter<T, U, Field>);
     return *this;
 }
 
@@ -1075,7 +1074,7 @@ template <typename T>
 RegisteredClassContext<T>& RegisteredClassContext<T>::bindCFunction(bool isStatic, std::string s,
                                                                     WrenForeignMethodFn function)
 {
-    detail::registerFunction(module_.vm_, module_.name_, class_, isStatic, s, function);
+    detail::registerFunction(_module._vm, _module._name, _class, isStatic, s, function);
     return *this;
 }
 
