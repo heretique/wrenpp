@@ -27,13 +27,7 @@ using ErrorFn      = std::function<void(WrenErrorType, const char*, int, const c
 
 namespace detail
 {
-    /***
-     *     ______              ____   __
-     *    /_  __/_ _____  ___ /  _/__/ /
-     *     / / / // / _ \/ -_)/ // _  /
-     *    /_/  \_, / .__/\__/___/\_,_/
-     *        /___/_/
-     */
+    /// TYPEID
 
     inline uint32_t& typeId()
     {
@@ -54,13 +48,7 @@ namespace detail
         return getTypeIdImpl<std::decay_t<T> >();
     }
 
-    /***
-     *       ____             _                  __     _         __
-     *      / __/__  _______ (_)__ ____    ___  / /    (_)__ ____/ /_
-     *     / _// _ \/ __/ -_) / _ `/ _ \  / _ \/ _ \  / / -_) __/ __/
-     *    /_/  \___/_/  \__/_/\_, /_//_/  \___/_.__/_/ /\__/\__/\__/
-     *                       /___/                |___/
-     */
+    /// FOREIGN OBJECT
 
     inline std::vector<std::string>& classNameStorage()
     {
@@ -116,10 +104,8 @@ namespace detail
         return moduleNameStorage()[id].c_str();
     }
 
-    /*
-     * The interface for getting the object pointer. The actual C++ object may lie within the Wren
-     * object, or may live in C++.
-     */
+    /// The interface for getting the object pointer. The actual C++ object may lie within the Wren
+    /// object, or may live in C++.
     class ForeignObject
     {
     public:
@@ -128,9 +114,7 @@ namespace detail
         virtual uint32_t typeId()    = 0;
     };
 
-    /*
-     * This wraps a class object by value. The lifetimes of these objects are managed in Wren.
-     */
+    /// This wraps a class object by value. The lifetimes of these objects are managed in Wren.
     template <typename T>
     class ForeignObjectValue : public ForeignObject
     {
@@ -170,10 +154,8 @@ namespace detail
         typename std::aligned_storage<sizeof(T), alignof(T)>::type _data;
     };
 
-    /*
-     * Wraps a pointer to a class object. The lifetimes of the pointed-to objects are managed by the
-     * host program.
-     */
+    /// Wraps a pointer to a class object. The lifetimes of the pointed-to objects are managed by the
+    /// host program.
     template <typename T>
     class ForeignObjectPtr : public ForeignObject
     {
@@ -206,15 +188,9 @@ namespace detail
         T* _object;
     };
 
-    /***
-     *       ____             _                       __  __           __
-     *      / __/__  _______ (_)__ ____    __ _  ___ / /_/ /  ___  ___/ /
-     *     / _// _ \/ __/ -_) / _ `/ _ \  /  ' \/ -_) __/ _ \/ _ \/ _  /
-     *    /_/  \___/_/  \__/_/\_, /_//_/ /_/_/_/\__/\__/_//_/\___/\_,_/
-     *                       /___/
-     */
+    /// FOREIGN METHOD
 
-    // given a Wren method signature, this returns a unique value
+    /// given a Wren method signature, this returns a unique value
     inline std::size_t hashMethodSignature(const char* module,
                                            const char* className,
                                            bool        isStatic,
@@ -287,6 +263,12 @@ namespace detail
     // const member function pointer
     template <typename C, typename R, typename... Args>
     struct FunctionTraits<R (C::*)(Args...) const> : public FunctionTraits<R(Args...)>
+    {
+    };
+
+    // const noexcept member function pointer
+    template <typename C, typename R, typename... Args>
+    struct FunctionTraits<R (C::*)(Args...) const noexcept> : public FunctionTraits<R(Args...)>
     {
     };
 
@@ -427,6 +409,20 @@ namespace detail
     };
 
     template <>
+    struct WrenSlotAPI<long>
+    {
+        static long get(WrenVM* vm, int slot)
+        {
+            return long(wrenGetSlotDouble(vm, slot));
+        }
+
+        static void set(WrenVM* vm, int slot, long val)
+        {
+            wrenSetSlotDouble(vm, slot, double(val));
+        }
+    };
+
+    template <>
     struct WrenSlotAPI<size_t>
     {
         static size_t get(WrenVM* vm, int slot)
@@ -504,9 +500,9 @@ namespace detail
         }
     };
 
-    // a helper for passing arguments to Wren
-    // explained here:
-    // http://stackoverflow.com/questions/17339789/how-to-call-a-function-on-all-variadic-template-args
+    /// a helper for passing arguments to Wren
+    /// explained here:
+    /// http://stackoverflow.com/questions/17339789/how-to-call-a-function-on-all-variadic-template-args
     template <typename... Args, std::size_t... index>
     void passArgumentsToWren(WrenVM* vm, const std::tuple<Args...>& tuple, std::index_sequence<index...>)
     {
@@ -549,6 +545,16 @@ namespace detail
         return (obj->*f)(WrenSlotAPI<typename Traits::template ArgumentType<index> >::get(vm, index + 1)...);
     }
 
+    // const noexcept variant
+    template <typename R, typename C, typename... Args, std::size_t... index>
+    decltype(auto) invokeHelper(WrenVM* vm, R (C::*f)(Args...) const noexcept, std::index_sequence<index...>)
+    {
+        using Traits              = FunctionTraits<decltype(f)>;
+        ForeignObject* objWrapper = static_cast<ForeignObject*>(wrenGetSlotForeign(vm, 0));
+        const C*       obj        = static_cast<const C*>(objWrapper->objectPtr());
+        return (obj->*f)(WrenSlotAPI<typename Traits::template ArgumentType<index> >::get(vm, index + 1)...);
+    }
+
     template <typename R, typename C, typename... Args>
     decltype(auto) invokeWithWrenArguments(WrenVM* vm, R (C::*f)(Args...))
     {
@@ -564,9 +570,17 @@ namespace detail
         return invokeHelper(vm, f, std::make_index_sequence<Arity>{});
     }
 
-    // invokes plain invokeWithWrenArguments if true
-    // invokes invokeWithWrenArguments within WrenReturn if false
-    // to be used with std::is_void as the predicate
+    // const noexcept variant
+    template <typename R, typename C, typename... Args>
+    decltype(auto) invokeWithWrenArguments(WrenVM* vm, R (C::*f)(Args...) const noexcept)
+    {
+        constexpr auto Arity = FunctionTraits<decltype(f)>::Arity;
+        return invokeHelper(vm, f, std::make_index_sequence<Arity>{});
+    }
+
+    /// invokes plain invokeWithWrenArguments if true
+    /// invokes invokeWithWrenArguments within WrenReturn if false
+    /// to be used with std::is_void as the predicate
     template <bool predicate>
     struct InvokeWithoutReturningIf
     {
@@ -639,13 +653,17 @@ namespace detail
         }
     };
 
-    /***
-     *       ____             _                                        __
-     *      / __/__  _______ (_)__ ____    ___  _______  ___  ___ ____/ /___ __
-     *     / _// _ \/ __/ -_) / _ `/ _ \  / _ \/ __/ _ \/ _ \/ -_) __/ __/ // /
-     *    /_/  \___/_/  \__/_/\_, /_//_/ / .__/_/  \___/ .__/\__/_/  \__/\_, /
-     *                       /___/      /_/           /_/               /___/
-     */
+    // const noexcept method variant
+    template <typename R, typename C, typename... Args, R (C::*m)(Args...) const noexcept>
+    struct ForeignMethodWrapper<R (C::*)(Args...) const noexcept, m>
+    {
+        static void call(WrenVM* vm)
+        {
+            InvokeWithoutReturningIf<std::is_void<R>::value>::invoke(vm, m);
+        }
+    };
+
+    /// FOREIGN PROPERTY
 
     // See this link for more about writing a metaprogramming type is_sharable<t>:
     // http://anthony.noided.media/blog/programming/c++/ruby/2016/05/12/mruby-cpp-and-template-magic.html
@@ -686,13 +704,7 @@ namespace detail
         obj->*Field               = WrenSlotAPI<U>::get(vm, 1);
     }
 
-    /***
-     *       ____             _                 __
-     *      / __/__  _______ (_)__ ____    ____/ /__ ____ ___
-     *     / _// _ \/ __/ -_) / _ `/ _ \  / __/ / _ `(_-<(_-<
-     *    /_/  \___/_/  \__/_/\_, /_//_/  \__/_/\_,_/___/___/
-     *                       /___/
-     */
+    /// FOREIGN CLASS
 
     // given a Wren class signature, this returns a unique value
     inline std::size_t hashClassSignature(const char* module, const char* className)
@@ -758,8 +770,8 @@ namespace detail
 class VM;
 class Method;
 
-// This class can hold any one of the values corresponding to the WrenType
-// enum defined in wren.h
+/// This class can hold any one of the values corresponding to the WrenType
+/// enum defined in wren.h
 class Value
 {
 public:
@@ -790,11 +802,9 @@ private:
 
 extern Value null;
 
-/**
- * Note that this class stores a reference to the owning VM instance!
- * Make sure you don't move the VM instance which created this object, before
- * this object goes out of scope!
- */
+/// Note that this class stores a reference to the owning VM instance!
+/// Make sure you don't move the VM instance which created this object, before
+/// this object goes out of scope!
 class Method
 {
 public:
@@ -915,10 +925,8 @@ public:
 
     void collectGarbage();
 
-    /**
-     * The signature consists of the name of the method, followed by a
-     * parenthesis enclosed list of of underscores representing each argument.
-     */
+    /// The signature consists of the name of the method, followed by a
+    /// parenthesis enclosed list of of underscores representing each argument.
     Method method(const std::string& module, const std::string& variable, const std::string& signature);
 
     ModuleContext beginModule(std::string name);
