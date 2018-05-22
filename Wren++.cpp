@@ -179,6 +179,11 @@ Method::~Method()
     }
 }
 
+Method::operator bool() const
+{
+    return _variable != nullptr && _method != nullptr;
+}
+
 Method& Method::operator=(Method&& rhs)
 {
     if (&rhs != this)

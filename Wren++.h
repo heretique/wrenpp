@@ -815,6 +815,7 @@ public:
     Method& operator=(const Method&) = delete;
     Method& operator                 =(Method&&);
     ~Method();
+    explicit operator bool() const;
 
     // this is const because we want to be able to pass this around like
     // immutable data
