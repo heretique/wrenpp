@@ -492,6 +492,20 @@ namespace detail
         }
     };
 
+    template <>
+    struct WrenSlotAPI<WrenHandle*>
+    {
+        static WrenHandle* get(WrenVM* vm, int slot)
+        {
+            return wrenGetSlotHandle(vm, slot);
+        }
+
+        static void set(WrenVM* vm, int slot, WrenHandle* val)
+        {
+            wrenSetSlotHandle(vm, slot, val);
+        }
+    };
+
     struct ExpandType
     {
         template <typename... T>
@@ -929,6 +943,7 @@ public:
     /// The signature consists of the name of the method, followed by a
     /// parenthesis enclosed list of of underscores representing each argument.
     Method method(const std::string& module, const std::string& variable, const std::string& signature);
+    Method method(WrenHandle* variable, const std::string& signature);
 
     ModuleContext beginModule(std::string name);
 

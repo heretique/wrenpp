@@ -356,12 +356,18 @@ void VM::collectGarbage()
     wrenCollectGarbage(_vm);
 }
 
-Method VM::method(const std::string& mod, const std::string& var, const std::string& sig)
+Method VM::method(const std::string& mod, const std::string& var, const std::string& signature)
 {
     wrenEnsureSlots(_vm, 1);
     wrenGetVariable(_vm, mod.c_str(), var.c_str(), 0);
     WrenHandle* variable = wrenGetSlotHandle(_vm, 0);
-    WrenHandle* handle   = wrenMakeCallHandle(_vm, sig.c_str());
+    WrenHandle* handle   = wrenMakeCallHandle(_vm, signature.c_str());
+    return Method(this, variable, handle);
+}
+
+Method VM::method(WrenHandle* variable, const std::string& signature)
+{
+    WrenHandle* handle = wrenMakeCallHandle(_vm, signature.c_str());
     return Method(this, variable, handle);
 }
 
