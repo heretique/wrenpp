@@ -266,12 +266,6 @@ namespace detail
     {
     };
 
-    // const noexcept member function pointer
-    template <typename C, typename R, typename... Args>
-    struct FunctionTraits<R (C::*)(Args...) const noexcept> : public FunctionTraits<R(Args...)>
-    {
-    };
-
     template <typename T>
     struct WrenSlotAPI
     {
@@ -559,16 +553,6 @@ namespace detail
         return (obj->*f)(WrenSlotAPI<typename Traits::template ArgumentType<index> >::get(vm, index + 1)...);
     }
 
-    // const noexcept variant
-    template <typename R, typename C, typename... Args, std::size_t... index>
-    decltype(auto) invokeHelper(WrenVM* vm, R (C::*f)(Args...) const noexcept, std::index_sequence<index...>)
-    {
-        using Traits              = FunctionTraits<decltype(f)>;
-        ForeignObject* objWrapper = static_cast<ForeignObject*>(wrenGetSlotForeign(vm, 0));
-        const C*       obj        = static_cast<const C*>(objWrapper->objectPtr());
-        return (obj->*f)(WrenSlotAPI<typename Traits::template ArgumentType<index> >::get(vm, index + 1)...);
-    }
-
     template <typename R, typename C, typename... Args>
     decltype(auto) invokeWithWrenArguments(WrenVM* vm, R (C::*f)(Args...))
     {
@@ -579,14 +563,6 @@ namespace detail
     // const variant
     template <typename R, typename C, typename... Args>
     decltype(auto) invokeWithWrenArguments(WrenVM* vm, R (C::*f)(Args...) const)
-    {
-        constexpr auto Arity = FunctionTraits<decltype(f)>::Arity;
-        return invokeHelper(vm, f, std::make_index_sequence<Arity>{});
-    }
-
-    // const noexcept variant
-    template <typename R, typename C, typename... Args>
-    decltype(auto) invokeWithWrenArguments(WrenVM* vm, R (C::*f)(Args...) const noexcept)
     {
         constexpr auto Arity = FunctionTraits<decltype(f)>::Arity;
         return invokeHelper(vm, f, std::make_index_sequence<Arity>{});
@@ -660,16 +636,6 @@ namespace detail
     // const method variant
     template <typename R, typename C, typename... Args, R (C::*m)(Args...) const>
     struct ForeignMethodWrapper<R (C::*)(Args...) const, m>
-    {
-        static void call(WrenVM* vm)
-        {
-            InvokeWithoutReturningIf<std::is_void<R>::value>::invoke(vm, m);
-        }
-    };
-
-    // const noexcept method variant
-    template <typename R, typename C, typename... Args, R (C::*m)(Args...) const noexcept>
-    struct ForeignMethodWrapper<R (C::*)(Args...) const noexcept, m>
     {
         static void call(WrenVM* vm)
         {
