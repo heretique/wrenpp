@@ -901,8 +901,8 @@ public:
         return _vm;
     }
 
-    Result executeModule(const std::string&);
-    Result executeString(const std::string&);
+    Result executeModule(const std::string& module);
+    Result executeString(const std::string& module, const std::string& str);
 
     void collectGarbage();
 
