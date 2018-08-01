@@ -266,7 +266,7 @@ namespace detail
     {
     };
 
-    template <typename T>
+    template <typename T, typename ENABLE_IF = void>
     struct WrenSlotAPI
     {
         static T get(WrenVM* vm, int slot)
@@ -411,6 +411,21 @@ namespace detail
         }
 
         static void set(WrenVM* vm, int slot, long val)
+        {
+            wrenSetSlotDouble(vm, slot, double(val));
+        }
+    };
+
+    template <typename T>
+    struct WrenSlotAPI<
+        T, std::enable_if_t<!std::is_same<unsigned, size_t>::value && std::is_same<T, size_t>::value, void> >
+    {
+        static size_t get(WrenVM* vm, int slot)
+        {
+            return size_t(wrenGetSlotDouble(vm, slot));
+        }
+
+        static void set(WrenVM* vm, int slot, size_t val)
         {
             wrenSetSlotDouble(vm, slot, double(val));
         }
