@@ -1,7 +1,8 @@
 #ifndef WRENPP_H_INCLUDED
 #define WRENPP_H_INCLUDED
 
-extern "C" {
+extern "C"
+{
 #include "wren.h"
 }
 #include <sys/stat.h>
@@ -266,7 +267,7 @@ namespace detail
     {
     };
 
-    template <typename T, typename ENABLE_IF = void>
+    template <typename T, typename = void>
     struct WrenSlotAPI
     {
         static T get(WrenVM* vm, int slot)
@@ -417,8 +418,7 @@ namespace detail
     };
 
     template <typename T>
-    struct WrenSlotAPI<
-        T, std::enable_if_t<!std::is_same<unsigned, size_t>::value && std::is_same<T, size_t>::value, void> >
+    struct WrenSlotAPI<T, std::enable_if_t<!std::is_same<unsigned, size_t>::value && std::is_same<T, size_t>::value> >
     {
         static size_t get(WrenVM* vm, int slot)
         {
