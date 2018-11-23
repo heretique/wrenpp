@@ -9,8 +9,8 @@ namespace
 {
 struct BoundState
 {
-    std::unordered_map<std::size_t, WrenForeignMethodFn>     methods{};
-    std::unordered_map<std::size_t, WrenForeignClassMethods> classes{};
+    std::unordered_map<std::size_t, WrenForeignMethodFn>     methods {};
+    std::unordered_map<std::size_t, WrenForeignClassMethods> classes {};
 };
 
 WrenForeignMethodFn foreignMethodProvider(
@@ -32,7 +32,7 @@ WrenForeignClassMethods foreignClassProvider(WrenVM* vm, const char* m, const ch
     auto  it         = boundState->classes.find(wrenpp::detail::hashClassSignature(m, c));
     if (it == boundState->classes.end())
     {
-        return WrenForeignClassMethods{nullptr, nullptr};
+        return WrenForeignClassMethods {nullptr, nullptr};
     }
 
     return it->second;
@@ -102,43 +102,43 @@ namespace detail
 Value null = Value();
 
 Value::Value(bool val)
-    : _type{WREN_TYPE_BOOL}
-    , _string{nullptr}
+    : _type {WREN_TYPE_BOOL}
+    , _string {nullptr}
 {
     set(val);
 }
 
 Value::Value(float val)
-    : _type{WREN_TYPE_NUM}
-    , _string{nullptr}
+    : _type {WREN_TYPE_NUM}
+    , _string {nullptr}
 {
     set(val);
 }
 
 Value::Value(double val)
-    : _type{WREN_TYPE_NUM}
-    , _string{nullptr}
+    : _type {WREN_TYPE_NUM}
+    , _string {nullptr}
 {
     set(val);
 }
 
 Value::Value(int val)
-    : _type{WREN_TYPE_NUM}
-    , _string{nullptr}
+    : _type {WREN_TYPE_NUM}
+    , _string {nullptr}
 {
     set(val);
 }
 
 Value::Value(unsigned int val)
-    : _type{WREN_TYPE_NUM}
-    , _string{nullptr}
+    : _type {WREN_TYPE_NUM}
+    , _string {nullptr}
 {
     set(val);
 }
 
 Value::Value(const char* str)
-    : _type{WREN_TYPE_STRING}
-    , _string{nullptr}
+    : _type {WREN_TYPE_STRING}
+    , _string {nullptr}
 {
     _string = static_cast<char*>(VM::reallocateFn(nullptr, std::strlen(str) + 1));
     std::strcpy(_string, str);
@@ -204,9 +204,7 @@ ClassContext ModuleContext::beginClass(std::string c)
     return ClassContext(c, *this);
 }
 
-void ModuleContext::endModule()
-{
-}
+void ModuleContext::endModule() {}
 
 ModuleContext& ClassContext::endClass()
 {
@@ -273,9 +271,9 @@ int VM::heapGrowthPercent = 50;
 std::size_t VM::chunkSize = 0x500000u;
 
 VM::VM()
-    : _vm{nullptr}
+    : _vm {nullptr}
 {
-    WrenConfiguration configuration{};
+    WrenConfiguration configuration {};
     wrenInitConfiguration(&configuration);
     configuration.reallocateFn        = reallocateFnWrapper;
     configuration.initialHeapSize     = initialHeapSize;
@@ -292,7 +290,7 @@ VM::VM()
 }
 
 VM::VM(VM&& other)
-    : _vm{other._vm}
+    : _vm {other._vm}
 {
     other._vm = nullptr;
 }
@@ -319,7 +317,8 @@ VM::~VM()
 Result VM::executeModule(const std::string& mod)
 {
     const std::string source(loadModuleFn(mod.c_str()));
-    auto              res = wrenInterpret(_vm, mod.c_str(), source.c_str());
+
+    auto res = wrenInterpret(_vm, mod.c_str(), source.c_str());
 
     if (res == WrenInterpretResult::WREN_RESULT_COMPILE_ERROR)
     {
